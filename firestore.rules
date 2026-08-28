@@ -1,0 +1,52 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Function to check roles from custom claims
+    function isAdmin() {
+      return request.auth != null && request.auth.token.role == 'admin';
+    }
+    
+    function isExecutive() {
+      return request.auth != null && request.auth.token.role == 'executive';
+    }
+    
+    function isDoctor() {
+      return request.auth != null && request.auth.token.role == 'doctor';
+    }
+
+    function isStaff() {
+      return request.auth != null && request.auth.token.role == 'staff';
+    }
+
+    function isPatient() {
+      // By default, newly registered patients via Google Auth won't have a role claim immediately
+      return request.auth != null && (request.auth.token.role == 'user' || !('role' in request.auth.token));
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Admissions collection
+    match /admissions/{admissionId} {
+      allow read: if isAdmin() || isExecutive() || isDoctor();
+      allow write: if isAdmin();
+    }
+
+    // Lab Orders collection
+    match /lab_orders/{orderId} {
+      allow read: if isAdmin() || isExecutive() || isDoctor();
+      allow write: if isAdmin();
+    }
+
+    // Daily Occupancy (Manual) collection
+    match /daily_occupancy_manual/{occupancyId} {
+      allow read: if isAdmin() || isExecutive() || isStaff();
+      // Staff can write/update manual occupancy logs
+      allow write: if isAdmin() || isStaff();
+    }
+  }
+}
