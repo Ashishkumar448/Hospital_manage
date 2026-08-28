@@ -62,7 +62,7 @@ export const LandingPage = ({ urls }: LandingPageProps = {}) => {
             Providing world-class healthcare to our community for over 50 years. Our dedicated team of specialists is here to support you at every step of your health journey.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
-            <a href={`${doctorUrl}/login`}>
+            <a href={`${userUrl}/login`}>
               <button className="bg-blue-600 text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl w-full sm:w-auto">
                 Book an Appointment
               </button>

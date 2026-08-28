@@ -32,21 +32,66 @@ service cloud.firestore {
 
     // Admissions collection
     match /admissions/{admissionId} {
-      allow read: if isAdmin() || isExecutive() || isDoctor();
-      allow write: if isAdmin();
+      allow read: if isAdmin() 
+                  || (isDoctor() && resource.data.admitting_department == request.auth.token.department)
+                  || (isStaff() && resource.data.ward == request.auth.token.ward)
+                  || (isPatient() && resource.data.patient_id == request.auth.uid);
+      
+      // Allow write for Admin (config/seeding) and for Doctor/Staff to update status
+      allow write: if isAdmin() 
+                  || (isDoctor() && resource.data.admitting_department == request.auth.token.department)
+                  || (isStaff() && resource.data.ward == request.auth.token.ward);
     }
 
     // Lab Orders collection
     match /lab_orders/{orderId} {
-      allow read: if isAdmin() || isExecutive() || isDoctor();
-      allow write: if isAdmin();
+      allow read: if isAdmin() 
+                  || (isDoctor() && resource.data.department == request.auth.token.department)
+                  || (isStaff()) // Staff can view to update sample collection
+                  || (isPatient() && resource.data.patient_id == request.auth.uid);
+                  
+      allow write: if isAdmin() 
+                  || (isDoctor() && resource.data.department == request.auth.token.department)
+                  || isStaff(); // Staff can update sample collection status
     }
 
     // Daily Occupancy (Manual) collection
     match /daily_occupancy_manual/{occupancyId} {
+      // Executives can view aggregated/hospital-wide data
       allow read: if isAdmin() || isExecutive() || isStaff();
-      // Staff can write/update manual occupancy logs
-      allow write: if isAdmin() || isStaff();
+      // Staff can write/update manual occupancy logs for their own ward
+      allow write: if isAdmin() || (isStaff() && resource.data.Ward == request.auth.token.ward);
+    }
+
+    // Metrics / Aggregated Dashboards (For Executives)
+    match /metrics/{metricId} {
+      allow read: if isAdmin() || isExecutive();
+      allow write: if isAdmin(); // Usually written by Cloud Functions/Admin SDK
+    }
+    // Beds collection
+    match /beds/{bedId} {
+      allow read: if request.auth != null; // All authenticated users can read beds
+      allow write: if isAdmin() || (isStaff() && resource.data.ward == request.auth.token.ward);
+    }
+
+    // Machines collection
+    match /machines/{machineId} {
+      allow read: if request.auth != null; // All authenticated users can read machines
+      allow write: if isAdmin() || (isStaff() && resource.data.ward == request.auth.token.ward);
+    }
+
+    // OPD Visits Collection
+    match /opd_visits/{visitId} {
+      // Doctors can read visits assigned to their department
+      // Staff can read all OPD visits
+      allow read: if isAdmin() 
+                  || isStaff() 
+                  || (isDoctor() && resource.data.assigned_department == request.auth.token.department);
+      
+      // Staff can create visits, Doctors can update them (e.g. status)
+      allow write: if isAdmin() 
+                  || isStaff() 
+                  || (isDoctor() && resource.data.assigned_department == request.auth.token.department);
     }
   }
 }
