@@ -3,6 +3,7 @@
 import React from "react";
 
 export interface LandingPageProps {
+  appName?: string;
   urls?: {
     user?: string;
     doctor?: string;
@@ -12,7 +13,7 @@ export interface LandingPageProps {
   };
 }
 
-export const LandingPage = ({ urls }: LandingPageProps = {}) => {
+export const LandingPage = ({ appName, urls }: LandingPageProps = {}) => {
   const userUrl = urls?.user || process.env.NEXT_PUBLIC_USER_URL || "http://localhost:3004";
   const doctorUrl = urls?.doctor || process.env.NEXT_PUBLIC_DOCTOR_URL || "http://localhost:3001";
   const staffUrl = urls?.staff || process.env.NEXT_PUBLIC_STAFF_URL || "http://localhost:3002";
@@ -39,9 +40,9 @@ export const LandingPage = ({ urls }: LandingPageProps = {}) => {
             <a href="#" className="text-slate-600 hover:text-blue-600 font-medium transition-colors">About Us</a>
           </nav>
           <div className="flex items-center gap-4">
-             <a href={`${userUrl}/login`}>
+             <a href="/login">
                <button className="hidden md:block bg-blue-600 text-white px-5 py-2.5 rounded-full font-semibold hover:bg-blue-700 transition-all shadow-md hover:shadow-lg">
-                 Patient Login
+                 {appName ? `${appName} Login` : "Portal Login"}
                </button>
              </a>
           </div>

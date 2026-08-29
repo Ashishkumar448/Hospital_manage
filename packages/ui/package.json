@@ -3,6 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "exports": {
+    "./hospitalInfo": "./src/hospitalInfo.ts",
+    "./Chatbot": "./src/Chatbot.tsx",
     "./*": "./src/*.tsx"
   },
   "scripts": {

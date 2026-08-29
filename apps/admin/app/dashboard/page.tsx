@@ -1,15 +1,60 @@
 "use client";
 
-import React, { useState } from "react";
-import { auth } from "@repo/firebase";
+import React, { useState, useEffect } from "react";
+import { auth, db } from "@repo/firebase";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
+
+interface Medicine {
+  id: string;
+  name: string;
+  stock: number;
+  unit: string;
+  category: string;
+}
+
+interface Machine {
+  id: string;
+  machine_id: string;
+  type: string;
+  ward: string;
+  status: string;
+}
 
 export default function AdminDashboard() {
+  const [activeTab, setActiveTab] = useState<"staff" | "pharmacy" | "facilities">("staff");
+
+  // Staff Form State
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [role, setRole] = useState("doctor");
+  
+  // Data State
+  const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [machines, setMachines] = useState<Machine[]>([]);
+  
+  // Form States
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ text: "", type: "" });
+
+  const fetchInventory = async () => {
+    try {
+      const [medSnap, machSnap] = await Promise.all([
+        getDocs(collection(db, "medicines")),
+        getDocs(collection(db, "machines"))
+      ]);
+      setMedicines(medSnap.docs.map(d => ({ id: d.id, ...d.data() } as Medicine)));
+      setMachines(machSnap.docs.map(d => ({ id: d.id, ...d.data() } as Machine)));
+    } catch (error) {
+      console.error("Error fetching inventory", error);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "pharmacy" || activeTab === "facilities") {
+      fetchInventory();
+    }
+  }, [activeTab]);
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,161 +93,313 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleAddMedicine = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    try {
+      await addDoc(collection(db, "medicines"), {
+        name: formData.get("name"),
+        stock: Number(formData.get("stock")),
+        unit: formData.get("unit"),
+        category: formData.get("category"),
+      });
+      e.currentTarget.reset();
+      fetchInventory();
+    } catch (error) {
+      alert("Failed to add medicine");
+    }
+  };
+
+  const handleDeleteMedicine = async (id: string) => {
+    if (confirm("Delete this medicine?")) {
+      await deleteDoc(doc(db, "medicines", id));
+      fetchInventory();
+    }
+  };
+
+  const handleAddMachine = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    try {
+      // For machines, we use the machine_id as the document ID for uniqueness if desired,
+      // but let's use addDoc for simplicity here, or setDoc.
+      await addDoc(collection(db, "machines"), {
+        machine_id: formData.get("machine_id"),
+        type: formData.get("type"),
+        ward: formData.get("ward"),
+        status: formData.get("status"),
+      });
+      e.currentTarget.reset();
+      fetchInventory();
+    } catch (error) {
+      alert("Failed to add machine");
+    }
+  };
+
+  const handleDeleteMachine = async (id: string) => {
+    if (confirm("Delete this machine?")) {
+      await deleteDoc(doc(db, "machines", id));
+      fetchInventory();
+    }
+  };
+
   return (
     <div className="w-full">
-      <div className="mb-10">
-        <h1 className="text-4xl font-extrabold text-white tracking-tight mb-2">Staff Registration</h1>
-        <p className="text-slate-400 text-lg">Securely provision accounts and assign RBAC claims for hospital personnel.</p>
+      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center">
+        <div>
+          <h1 className="text-4xl font-extrabold text-white tracking-tight mb-2">Hospital Administration</h1>
+          <p className="text-slate-400 text-lg">Manage personnel RBAC, pharmacy inventory, and lab facilities.</p>
+        </div>
+        <button 
+          onClick={() => auth.signOut()}
+          className="mt-4 md:mt-0 text-slate-400 hover:text-red-400 font-medium transition-colors"
+        >
+          Sign Out
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Left Column: Form */}
-        <div className="lg:col-span-2">
-          <div className="bg-[#1e293b]/80 backdrop-blur-md rounded-2xl border border-slate-700/50 shadow-xl overflow-hidden relative">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-blue-500"></div>
-            
-            <div className="p-8">
-              <form className="space-y-6" onSubmit={handleCreateUser}>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-slate-300">Full Name</label>
-                    <input
-                      type="text"
-                      required
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      className="w-full bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                      placeholder="Dr. Sarah Jenkins"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-slate-300">Email Address</label>
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                      placeholder="s.jenkins@hospital.com"
-                    />
-                  </div>
-                </div>
+      <div className="flex space-x-2 mb-8 bg-[#1e293b]/50 p-1.5 rounded-xl border border-slate-800 w-fit">
+        <button 
+          onClick={() => setActiveTab("staff")}
+          className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === "staff" ? "bg-purple-600 text-white shadow-lg" : "text-slate-400 hover:text-white hover:bg-slate-800"}`}
+        >
+          Staff & Roles
+        </button>
+        <button 
+          onClick={() => setActiveTab("pharmacy")}
+          className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === "pharmacy" ? "bg-teal-600 text-white shadow-lg" : "text-slate-400 hover:text-white hover:bg-slate-800"}`}
+        >
+          Pharmacy Inventory
+        </button>
+        <button 
+          onClick={() => setActiveTab("facilities")}
+          className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === "facilities" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white hover:bg-slate-800"}`}
+        >
+          Lab Facilities
+        </button>
+      </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-slate-300">Temporary Password</label>
-                    <input
-                      type="password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                      placeholder="••••••••"
-                    />
+      {/* --- STAFF TAB --- */}
+      {activeTab === "staff" && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in zoom-in-95 duration-300">
+          <div className="lg:col-span-2">
+            <div className="bg-[#1e293b]/80 backdrop-blur-md rounded-2xl border border-slate-700/50 shadow-xl overflow-hidden relative">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-indigo-500"></div>
+              <div className="p-8">
+                <h2 className="text-xl font-bold text-white mb-6">Register New Personnel</h2>
+                <form className="space-y-6" onSubmit={handleCreateUser}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-slate-300">Full Name</label>
+                      <input type="text" required value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="w-full bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all" placeholder="Dr. Sarah Jenkins" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-slate-300">Email Address</label>
+                      <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all" placeholder="s.jenkins@hospital.com" />
+                    </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-slate-300">Assign Role</label>
-                    <div className="relative">
-                      <select
-                        value={role}
-                        onChange={(e) => setRole(e.target.value)}
-                        className="w-full appearance-none bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                      >
-                        <option value="doctor">Physician (Doctor)</option>
-                        <option value="staff">Nursing & Staff</option>
-                        <option value="executive">Executive</option>
-                        <option value="admin">System Admin</option>
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-slate-300">Temporary Password</label>
+                      <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all" placeholder="••••••••" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-semibold text-slate-300">Assign Role</label>
+                      <div className="relative">
+                        <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full appearance-none bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all">
+                          <option value="doctor">Physician (Doctor)</option>
+                          <option value="staff">Nursing & Staff</option>
+                          <option value="executive">Executive</option>
+                          <option value="admin">System Admin</option>
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-
-                {message.text && (
-                  <div className={`p-4 rounded-xl flex items-start gap-3 border ${message.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'}`}>
-                    <svg className="w-5 h-5 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      {message.type === 'error' 
-                        ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      }
-                    </svg>
-                    <span className="text-sm font-medium">{message.text}</span>
+                  {message.text && (
+                    <div className={`p-4 rounded-xl flex items-start gap-3 border ${message.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'}`}>
+                      <span className="text-sm font-medium">{message.text}</span>
+                    </div>
+                  )}
+                  <div className="pt-4 flex justify-end">
+                    <button type="submit" disabled={loading} className="px-8 py-3 rounded-xl bg-purple-600 text-white font-bold transition-all hover:bg-purple-500 disabled:opacity-50">
+                      {loading ? "Provisioning..." : "Register User"}
+                    </button>
                   </div>
-                )}
-
-                <div className="pt-4 flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="relative group overflow-hidden px-8 py-3 rounded-xl bg-purple-600 text-white font-bold transition-all hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(147,51,234,0.3)] hover:shadow-[0_0_30px_rgba(147,51,234,0.5)]"
-                  >
-                    <span className="relative z-10 flex items-center gap-2">
-                      {loading ? (
-                        <>
-                          <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Provisioning...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
-                          Register User
-                        </>
-                      )}
-                    </span>
-                    {!loading && <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Info / Stats */}
-        <div className="space-y-6">
-          <div className="bg-[#1e293b]/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-800">
-            <h3 className="text-white font-bold mb-4 flex items-center gap-2">
-              <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              Role Guidelines
-            </h3>
-            <ul className="space-y-3 text-sm text-slate-400">
-              <li className="flex items-start gap-2">
-                <span className="text-teal-400 mt-1">•</span>
-                <span><strong className="text-slate-300">Physicians</strong> can view lab results, patient histories, and authorize discharges.</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-indigo-400 mt-1">•</span>
-                <span><strong className="text-slate-300">Nursing & Staff</strong> can log manual bed occupancies and update ward statuses.</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-purple-400 mt-1">•</span>
-                <span><strong className="text-slate-300">Executives</strong> have read-only access to hospital-wide analytical data.</span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="bg-gradient-to-br from-blue-900/40 to-purple-900/40 backdrop-blur-sm rounded-2xl p-6 border border-blue-500/20">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-500/20 rounded-xl">
-                <svg className="w-6 h-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.95 11.95 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
-              </div>
-              <div>
-                <p className="text-slate-300 text-sm font-medium">System Status</p>
-                <p className="text-white font-bold">API Online & Secure</p>
+                </form>
               </div>
             </div>
           </div>
+          {/* Info Card */}
+          <div className="space-y-6">
+            <div className="bg-[#1e293b]/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-800">
+              <h3 className="text-white font-bold mb-4 flex items-center gap-2">Role Guidelines</h3>
+              <ul className="space-y-3 text-sm text-slate-400">
+                <li><strong className="text-slate-300">Physicians</strong> view labs and authorize discharges.</li>
+                <li><strong className="text-slate-300">Nursing</strong> log manual bed occupancies.</li>
+                <li><strong className="text-slate-300">Executives</strong> view hospital-wide analytical data.</li>
+              </ul>
+            </div>
+          </div>
         </div>
-        
-      </div>
+      )}
+
+      {/* --- PHARMACY TAB --- */}
+      {activeTab === "pharmacy" && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in zoom-in-95 duration-300">
+          <div className="lg:col-span-1">
+            <div className="bg-[#1e293b]/80 backdrop-blur-md rounded-2xl border border-slate-700/50 shadow-xl overflow-hidden relative">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-500 to-emerald-500"></div>
+              <div className="p-6">
+                <h2 className="text-xl font-bold text-white mb-6">Add New Medicine</h2>
+                <form onSubmit={handleAddMedicine} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-300 mb-1">Medicine Name</label>
+                    <input name="name" type="text" required className="w-full bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-2.5 text-white" placeholder="Paracetamol" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-300 mb-1">Stock Quantity</label>
+                    <input name="stock" type="number" required className="w-full bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-2.5 text-white" placeholder="500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-300 mb-1">Unit</label>
+                    <input name="unit" type="text" required className="w-full bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-2.5 text-white" placeholder="mg, tablets, ml" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-300 mb-1">Category</label>
+                    <select name="category" className="w-full bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-2.5 text-white">
+                      <option value="Analgesic">Analgesic</option>
+                      <option value="Antibiotic">Antibiotic</option>
+                      <option value="Antiseptic">Antiseptic</option>
+                      <option value="Anesthetic">Anesthetic</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <button type="submit" className="w-full mt-4 px-4 py-3 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold transition-all">Add to Inventory</button>
+                </form>
+              </div>
+            </div>
+          </div>
+          <div className="lg:col-span-2">
+             <div className="bg-[#1e293b]/80 backdrop-blur-md rounded-2xl border border-slate-700/50 shadow-xl overflow-hidden">
+               <div className="p-6 border-b border-slate-700/50">
+                 <h2 className="text-xl font-bold text-white">Current Stock</h2>
+               </div>
+               <div className="overflow-x-auto">
+                 <table className="min-w-full divide-y divide-slate-700">
+                   <thead className="bg-[#0f172a]">
+                     <tr>
+                       <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Name</th>
+                       <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Category</th>
+                       <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Stock</th>
+                       <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Actions</th>
+                     </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-700/50">
+                     {medicines.map((med) => (
+                       <tr key={med.id} className="hover:bg-slate-800/50">
+                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{med.name}</td>
+                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">{med.category}</td>
+                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
+                           <span className={`px-2 py-1 rounded text-xs font-bold ${med.stock < 100 ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}`}>{med.stock} {med.unit}</span>
+                         </td>
+                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
+                           <button onClick={() => handleDeleteMedicine(med.id)} className="text-red-400 hover:text-red-300">Remove</button>
+                         </td>
+                       </tr>
+                     ))}
+                     {medicines.length === 0 && (
+                       <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-500">No medicines in inventory.</td></tr>
+                     )}
+                   </tbody>
+                 </table>
+               </div>
+             </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- FACILITIES TAB --- */}
+      {activeTab === "facilities" && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in zoom-in-95 duration-300">
+          <div className="lg:col-span-1">
+            <div className="bg-[#1e293b]/80 backdrop-blur-md rounded-2xl border border-slate-700/50 shadow-xl overflow-hidden relative">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
+              <div className="p-6">
+                <h2 className="text-xl font-bold text-white mb-6">Register Machine</h2>
+                <form onSubmit={handleAddMachine} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-300 mb-1">Machine ID</label>
+                    <input name="machine_id" type="text" required className="w-full bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-2.5 text-white" placeholder="USG-002" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-300 mb-1">Type</label>
+                    <input name="type" type="text" required className="w-full bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-2.5 text-white" placeholder="Ultrasound" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-300 mb-1">Assigned Ward</label>
+                    <input name="ward" type="text" required className="w-full bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-2.5 text-white" placeholder="Maternity Ward" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-300 mb-1">Status</label>
+                    <select name="status" className="w-full bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-2.5 text-white">
+                      <option value="Available">Available</option>
+                      <option value="In Use">In Use</option>
+                      <option value="Maintenance">Maintenance</option>
+                      <option value="Out of Order">Out of Order</option>
+                    </select>
+                  </div>
+                  <button type="submit" className="w-full mt-4 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all">Add Facility</button>
+                </form>
+              </div>
+            </div>
+          </div>
+          <div className="lg:col-span-2">
+             <div className="bg-[#1e293b]/80 backdrop-blur-md rounded-2xl border border-slate-700/50 shadow-xl overflow-hidden">
+               <div className="p-6 border-b border-slate-700/50">
+                 <h2 className="text-xl font-bold text-white">Registered Facilities</h2>
+               </div>
+               <div className="overflow-x-auto">
+                 <table className="min-w-full divide-y divide-slate-700">
+                   <thead className="bg-[#0f172a]">
+                     <tr>
+                       <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">ID</th>
+                       <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Type & Ward</th>
+                       <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
+                       <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Actions</th>
+                     </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-700/50">
+                     {machines.map((mach) => (
+                       <tr key={mach.id} className="hover:bg-slate-800/50">
+                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-white">{mach.machine_id}</td>
+                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">{mach.type} <span className="text-slate-500 text-xs block">{mach.ward}</span></td>
+                         <td className="px-6 py-4 whitespace-nowrap text-sm">
+                           <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                             mach.status === 'Available' ? 'bg-emerald-500/20 text-emerald-400' :
+                             mach.status === 'In Use' ? 'bg-blue-500/20 text-blue-400' :
+                             mach.status === 'Maintenance' ? 'bg-amber-500/20 text-amber-400' :
+                             'bg-red-500/20 text-red-400'
+                           }`}>{mach.status}</span>
+                         </td>
+                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
+                           <button onClick={() => handleDeleteMachine(mach.id)} className="text-red-400 hover:text-red-300">Remove</button>
+                         </td>
+                       </tr>
+                     ))}
+                     {machines.length === 0 && (
+                       <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-500">No facilities registered.</td></tr>
+                     )}
+                   </tbody>
+                 </table>
+               </div>
+             </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

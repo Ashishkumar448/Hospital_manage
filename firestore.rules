@@ -33,22 +33,24 @@ service cloud.firestore {
     // Admissions collection
     match /admissions/{admissionId} {
       allow read: if isAdmin() 
-                  || (isDoctor() && resource.data.admitting_department == request.auth.token.department)
+                  || isExecutive()
+                  || (isDoctor() && resource.data.department == request.auth.token.department)
                   || (isStaff() && resource.data.ward == request.auth.token.ward)
-                  || (isPatient() && resource.data.patient_id == request.auth.uid);
+                  || isPatient();
       
       // Allow write for Admin (config/seeding) and for Doctor/Staff to update status
       allow write: if isAdmin() 
-                  || (isDoctor() && resource.data.admitting_department == request.auth.token.department)
+                  || (isDoctor() && resource.data.department == request.auth.token.department)
                   || (isStaff() && resource.data.ward == request.auth.token.ward);
     }
 
     // Lab Orders collection
     match /lab_orders/{orderId} {
       allow read: if isAdmin() 
+                  || isExecutive()
                   || (isDoctor() && resource.data.department == request.auth.token.department)
                   || (isStaff()) // Staff can view to update sample collection
-                  || (isPatient() && resource.data.patient_id == request.auth.uid);
+                  || isPatient();
                   
       allow write: if isAdmin() 
                   || (isDoctor() && resource.data.department == request.auth.token.department)
@@ -80,6 +82,12 @@ service cloud.firestore {
       allow write: if isAdmin() || (isStaff() && resource.data.ward == request.auth.token.ward);
     }
 
+    // Medicines collection
+    match /medicines/{medicineId} {
+      allow read: if request.auth != null; // All authenticated users can read medicines
+      allow write: if isAdmin(); // Only admins can manage medicines
+    }
+
     // OPD Visits Collection
     match /opd_visits/{visitId} {
       // Doctors can read visits assigned to their department
@@ -92,6 +100,21 @@ service cloud.firestore {
       allow write: if isAdmin() 
                   || isStaff() 
                   || (isDoctor() && resource.data.assigned_department == request.auth.token.department);
+    }
+
+    // Doctor Status Collection
+    match /doctor_status/{doctorId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth.uid == doctorId;
+    }
+    // Chat History collection
+    match /chat_history/{chatId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId || request.auth.uid == request.resource.data.userId;
+    }
+
+    // Triage History collection
+    match /triage_history/{triageId} {
+      allow read, write: if isStaff() || isAdmin() || isExecutive() || isDoctor();
     }
   }
 }
