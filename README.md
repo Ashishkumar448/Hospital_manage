@@ -31,6 +31,7 @@ This monorepo contains several distinct applications, each tailored for a specif
 - **Administer Medication:** Log when a prescribed medication has been administered to a patient.
 - **Update Lab Samples:** Mark a lab sample as "Collected" so the lab knows it is on the way.
 - **Log Equipment Usage:** Assign a specific medical machine (e.g., ventilator) to a patient or flag it for maintenance.
+- **AI Triage System:** Use a dedicated AI interface to input patient symptoms. The AI Triage Director automatically recommends the correct department, priority, and assigns an available bed by cross-referencing live bed board data, while saving all triage histories.
 
 ### 4. Executive Portal (`apps/executives`)
 **Target Users:** Hospital Executives, Operations Directors
@@ -47,10 +48,11 @@ This monorepo contains several distinct applications, each tailored for a specif
 - **View Care Status:** Check their current admission status, assigned ward, and estimated discharge date.
 - **View Test Results:** Securely download or view released lab reports and diagnostic results.
 - **View Prescriptions:** See exactly what medications they have been prescribed and review discharge instructions.
+- **AI Health Assistant:** Chat with an integrated, intelligent assistant (supporting both English and Hindi) to ask general hospital questions or inquire about their health data. Includes an "AI Consultations" tab to permanently save and review past chat sessions.
 
 ## Shared Packages
 
-- `@repo/ui`: Shared React components, including the authentication screens, landing page, and protected route wrappers.
+- `@repo/ui`: Shared React components, including the authentication screens, landing page, protected route wrappers, and the unified AI Chatbot interface.
 - `@repo/firebase`: Shared Firebase initialization and configuration logic.
 - `@repo/eslint-config`, `@repo/typescript-config`, `@repo/tailwind-config`: Shared linting, typing, and styling configurations ensuring consistency across all apps.
 
