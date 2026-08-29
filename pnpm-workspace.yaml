@@ -2,7 +2,14 @@ packages:
   - "apps/*"
   - "packages/*"
 
+# pnpm v11+ syntax: allowBuilds as a map
 allowBuilds:
+  "@firebase/util": true
+  "esbuild": true
+  "protobufjs": true
+
+# pnpm v8-v10 backward compat (used by some Vercel build environments)
+onlyBuiltDependencies:
   - "@firebase/util"
   - "esbuild"
   - "protobufjs"
