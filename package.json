@@ -18,12 +18,5 @@
   "packageManager": "pnpm@11.23.0",
   "engines": {
     "node": ">=24"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@firebase/util",
-      "esbuild",
-      "protobufjs"
-    ]
   }
 }
