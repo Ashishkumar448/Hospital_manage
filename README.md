@@ -1,5 +1,6 @@
 # Hospital Operations Platform
 
+
 A comprehensive, role-based monorepo application designed to manage hospital operations efficiently. Built with Turborepo, Next.js (App Router), and Firebase (Auth, Firestore).
 
 ## Project Structure
