@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { auth, db } from "@repo/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { useAuth } from "@repo/ui/src/AuthProvider";
+import { useAuth } from "@repo/ui/AuthProvider";
 
 const CATEGORY_MAP: Record<string, string> = {
   "Skin": "Dermatology",

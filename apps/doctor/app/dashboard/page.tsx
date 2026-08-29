@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { auth, db } from "@repo/firebase";
 import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
-import { useAuth } from "@repo/ui/src/AuthProvider";
+import { useAuth } from "@repo/ui/AuthProvider";
 
 interface PatientAdmission {
   id: string;
@@ -41,7 +41,7 @@ export default function DoctorDashboard() {
           where("admitting_department", "==", department)
         );
         const snapAdmissions = await getDocs(qAdmissions);
-        setPatients(snapAdmissions.docs.map(d => ({ id: d.id, ...d.data() })) as PatientAdmission[]);
+        setPatients(snapAdmissions.docs.map((d: any) => ({ id: d.id, ...d.data() })) as PatientAdmission[]);
 
         // Fetch OPD Visits
         const qOpd = query(
@@ -50,7 +50,7 @@ export default function DoctorDashboard() {
           where("status", "==", "Waiting")
         );
         const snapOpd = await getDocs(qOpd);
-        let visits = snapOpd.docs.map(d => ({ id: d.id, ...d.data() })) as OPDVisit[];
+        let visits = snapOpd.docs.map((d: any) => ({ id: d.id, ...d.data() })) as OPDVisit[];
         
         // Sort: Rapid Priority first, then by registration time
         visits.sort((a, b) => {

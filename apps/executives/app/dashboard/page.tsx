@@ -94,7 +94,7 @@ export default function ExecutivesDashboard() {
             <thead>
               <tr>
                 <th>Department</th>
-                <th>Delayed Tests (> 2h)</th>
+                <th>Delayed Tests (&gt; 2h)</th>
               </tr>
             </thead>
             <tbody>

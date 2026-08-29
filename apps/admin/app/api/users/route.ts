@@ -25,6 +25,9 @@ export async function POST(request: Request) {
     }
 
     const idToken = authHeader.split("Bearer ")[1];
+    if (!idToken) {
+      return NextResponse.json({ error: "Invalid token format" }, { status: 401 });
+    }
     const decodedToken = await auth.verifyIdToken(idToken);
     
     if (decodedToken.role !== "admin") {

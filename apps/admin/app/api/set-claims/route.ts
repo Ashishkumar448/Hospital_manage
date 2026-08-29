@@ -10,6 +10,9 @@ export async function POST(request: Request) {
     }
 
     const token = authHeader.split('Bearer ')[1];
+    if (!token) {
+      return NextResponse.json({ error: 'Invalid token format' }, { status: 401 });
+    }
     
     // Verify the caller's token
     const decodedToken = await adminAuth.verifyIdToken(token);
