@@ -44,7 +44,7 @@ Output EXACTLY in the following JSON format, and nothing else:
       response_format: { type: "json_object" }
     });
 
-    const result = JSON.parse(chatResponse.choices[0].message.content || "{}");
+    const result = JSON.parse(chatResponse.choices[0]?.message?.content || "{}");
     return NextResponse.json(result);
   } catch (error: any) {
     console.error("Triage API Error:", error);

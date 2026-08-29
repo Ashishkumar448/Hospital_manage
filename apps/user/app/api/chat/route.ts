@@ -36,7 +36,7 @@ ${contextData ? JSON.stringify(contextData, null, 2) : "No live data available."
       max_tokens: 500,
     });
 
-    return NextResponse.json({ reply: chatResponse.choices[0].message.content });
+    return NextResponse.json({ reply: chatResponse.choices[0]?.message?.content || "I couldn't process that." });
   } catch (error: any) {
     console.error("Chat API Error:", error);
     return NextResponse.json({ reply: "I'm sorry, I encountered an error connecting to the AI service." }, { status: 500 });
